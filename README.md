@@ -18,6 +18,8 @@ AINT 是在本机运行的 AI 互动小说运行时。玩家导入作品，配�
 
 启动、模型配置、作品导入、阅读操作、数据备份和局域网访问见[使用说明](docs/usage.md)。
 
+交流群：[Discord](https://discord.gg/RM4F8SxfF)
+
 ## 从源码运行
 
 需要 Go ≥ 1.27、Node ≥ 22、pnpm 11 和 [Task](https://taskfile.dev)。详细版本与检查工具见[开发环境](docs/development.md#1-环境)。
@@ -29,15 +31,15 @@ task dev
 
 访问 <http://localhost:5173>。开发服务使用固定的假模型脚本，数据存放在 `.devdata/`。连接真实模型时，在两个终端分别运行 `task dev:server:real` 和 `task dev:web`，然后在设置中添加模型。
 
-| 命令 | 用途 |
-| --- | --- |
-| `task check` | 静态检查与 Go、前端单元测试 |
-| `task test:e2e` | 浏览器端到端测试 |
-| `task fmt` | 格式化代码 |
-| `task build` | 构建嵌入前端的程序到 `bin/` |
-| `task validate -- <作品目录>` | 校验作品 |
-| `task prompt -- <作品目录>` | 查看组装后的提示词与工具定义 |
-| `aint --help` | 查看命令行用法 |
+| 命令                          | 用途                         |
+| ----------------------------- | ---------------------------- |
+| `task check`                  | 静态检查与 Go、前端单元测试  |
+| `task test:e2e`               | 浏览器端到端测试             |
+| `task fmt`                    | 格式化代码                   |
+| `task build`                  | 构建嵌入前端的程序到 `bin/`  |
+| `task validate -- <作品目录>` | 校验作品                     |
+| `task prompt -- <作品目录>`   | 查看组装后的提示词与工具定义 |
+| `aint --help`                 | 查看命令行用法               |
 
 ## 文档与目录
 
