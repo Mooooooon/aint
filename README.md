@@ -2,6 +2,8 @@
 
 **AINT Is Not Tavern**，也读作 **Agentic Interactive Narrative Theatre**。
 
+[介绍视频](https://www.bilibili.com/video/BV1GRxF6dEd5) · [AINT 格式作品创作指南](https://www.bilibili.com/video/BV1Bd4A61EQV)
+
 AINT 是在本机运行的 AI 互动小说运行时。玩家导入作品，配置模型 API，在浏览器中阅读、选择行动或自由输入。程序使用 Go 后端与 React 前端，发布为单个可执行文件，作品、设置和存档保存在本机。
 
 作品是一个包含 YAML、Markdown、Liquid 模板和素材的目录。作者可以编写执笔指令、人物与世界设定、多个开场、状态、命令、面板和主题。模型通过工具查阅资料、维护记忆与状态、生成正文和选项；上下文达到预算时，运行时整理记忆并保留近期回合。
