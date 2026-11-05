@@ -52,7 +52,7 @@ openings:
 | 插图、音频或常驻图片 | `assets/` 与 `assets.yaml` |
 | 正文结束后补选项 | `features.force_choices: true`，见[选项行为](../skills/aint-work/references/format.md#正文结束后交还选项) |
 
-《第一个故事》展示最小结构；[《倒悬的街角》](../examples/works/inverted-stars/)包含多个开场、状态、面板和命令。测试作品[《雾港来信》](../testdata/works/misty-harbor/)提供图片、标签和掷骰等格式示例。
+《第一个故事（示例）》展示最小结构；[《倒悬的街角（示例）》](../examples/works/inverted-stars/)由项目提供的 `aint-work` skill 生成，包含多个开场、状态、面板和命令。两部作品的简介开头均有引用块说明示例用途。测试作品[《雾港来信》](../testdata/works/misty-harbor/)提供图片、标签和掷骰等格式示例。
 
 ## 试玩与检查
 

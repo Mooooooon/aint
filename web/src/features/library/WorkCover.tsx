@@ -81,8 +81,8 @@ export function WorkCover({ id, title, className, dev, compact, image }: Props) 
         <div className="flex h-full w-full justify-center border border-[#23345a]/25 py-[3cqw]">
           {!compact && (
             <span
-              className="font-serif font-semibold text-[#23345a] [text-orientation:upright] [writing-mode:vertical-rl]"
-              style={{ fontSize: `min(9.5cqw, ${(70 / len).toFixed(2)}cqw)`, letterSpacing: '0.12em', lineHeight: 1 }}
+              className="font-serif font-semibold whitespace-nowrap text-[#23345a] [text-orientation:upright] [writing-mode:vertical-rl]"
+              style={{ fontSize: `min(9.5cqw, ${(60 / len).toFixed(2)}cqw)`, letterSpacing: '0.12em', lineHeight: 1 }}
             >
               {title}
             </span>
