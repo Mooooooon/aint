@@ -73,12 +73,44 @@ describe('会话恢复', () => {
 })
 afterEach(cleanup)
 
-function actions(timeline?: Timeline) {
+function actions(timeline?: Timeline, beforeAction?: () => Promise<boolean>) {
   const client = new QueryClient()
-  return renderHook(() => useTurnActions('save', [follow], timeline), {
+  return renderHook(() => useTurnActions('save', [follow], timeline, beforeAction), {
     wrapper: ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
   }).result
 }
+
+describe('设置保存与回合提交', () => {
+  it('等待设置保存后才提交回合，多次点击只提交一次', async () => {
+    let saved!: (ok: boolean) => void
+    const pending = new Promise<boolean>((resolve) => {
+      saved = resolve
+    })
+    const a = actions(undefined, () => pending)
+    const first = a.current.submitText('推门')
+    const second = a.current.choose({ id: 'a', label: '拆信' })
+    expect(api.saves.submit).not.toHaveBeenCalled()
+    expect(useReader.getState().pending).toBeNull()
+    saved(true)
+    expect((await Promise.all([first, second])).filter(Boolean)).toHaveLength(1)
+    expect(api.saves.submit).toHaveBeenCalledTimes(1)
+  })
+
+  it('保存未完成时保留输入，不确认命令或启动回合操作', async () => {
+    const a = actions(operationTimeline, async () => false)
+    expect(await a.current.submitText('推门')).toBe(false)
+    expect(await a.current.submitText('/follow 林舟')).toBe(false)
+    expect(await a.current.choose({ id: 'b', label: '跟着林舟', command: '/follow 林舟' })).toBe(false)
+    expect(await a.current.submitText('/choices')).toBe(false)
+    expect(await a.current.submitText('/compact')).toBe(false)
+    expect(await a.current.regenerate('story', 'root')).toBe(false)
+    expect(confirmAction).not.toHaveBeenCalled()
+    expect(api.saves.submit).not.toHaveBeenCalled()
+    expect(api.saves.requestChoices).not.toHaveBeenCalled()
+    expect(api.saves.regenerate).not.toHaveBeenCalled()
+    expect(useReader.getState().pending).toBeNull()
+  })
+})
 
 describe('选项提交', () => {
   it('普通选项提交选项 ID', async () => {

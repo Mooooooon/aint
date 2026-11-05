@@ -108,10 +108,11 @@ type ViewProps = {
 function ReaderView({ loadEarlier, loadingEarlier, saveId, presentation, timeline, panels, reading, workTheme, devTools }: ViewProps) {
   const { t } = useTranslation()
   const { ui, save } = presentation
-  const actions = useTurnActions(saveId, ui.commands, timeline)
+  const dockRef = useRef<InputDockHandle>(null)
+  const saveSettings = useCallback(() => dockRef.current?.saveSettings() ?? Promise.resolve(true), [])
+  const actions = useTurnActions(saveId, ui.commands, timeline, saveSettings)
   const busy = useReader(selectBusy)
   const connection = useReader((s) => s.connection)
-  const dockRef = useRef<InputDockHandle>(null)
   const [helpOpen, setHelpOpen] = useState(false)
   const sidebarOpen = useUI((s) => s.sidebarOpen)
   const setSidebarOpen = useUI((s) => s.setSidebarOpen)

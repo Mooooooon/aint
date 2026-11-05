@@ -4,18 +4,22 @@
  */
 import { create } from 'zustand'
 
+import type { Settings } from '@/api/types'
+
 interface ConfirmRequest {
   message: string
+  warning?: keyof Settings['dismissed_warnings']
+  remember: boolean
   resolve: (ok: boolean) => void
 }
 
 export const useConfirmStore = create<{ req: ConfirmRequest | null }>(() => ({ req: null }))
 
 /** 显示确认框，玩家确定时返回 true。同一时刻只有一个确认框：新的请求会让旧的按"取消"结束。 */
-export function confirmAction(message: string): Promise<boolean> {
+export function confirmAction(message: string, warning?: ConfirmRequest['warning']): Promise<boolean> {
   return new Promise((resolve) => {
     useConfirmStore.getState().req?.resolve(false)
-    useConfirmStore.setState({ req: { message, resolve } })
+    useConfirmStore.setState({ req: { message, warning, remember: false, resolve } })
   })
 }
 

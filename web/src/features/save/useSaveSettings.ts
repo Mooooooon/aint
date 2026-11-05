@@ -8,7 +8,7 @@ import type { SaveSettings } from '@/api/types'
 import { selectBusy, useReader } from '@/stores/reader'
 
 /** 只提交当前入口修改的字段，刷新后才允许继续操作。 */
-export function useSaveSettings(saveId: string, onDone?: () => void) {
+export function useSaveSettings(saveId: string) {
   const qc = useQueryClient()
   const busy = useReader(selectBusy)
   const compacting = useReader((s) => s.compacting)
@@ -16,7 +16,6 @@ export function useSaveSettings(saveId: string, onDone?: () => void) {
     mutationFn: (patch: Partial<SaveSettings>) => api.saves.settings(saveId, patch),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: qk.save(saveId) })
-      onDone?.()
     },
     onError: (err) => toast.error(errorMessage(err)),
   })

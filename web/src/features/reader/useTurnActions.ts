@@ -19,7 +19,7 @@ import { parseInput } from './commands'
 import { displayedInput } from './stream/displayedInput'
 import type { SubmitOptions } from './input/InputDock'
 
-export function useTurnActions(saveId: string, commands: Command[], timeline?: Timeline) {
+export function useTurnActions(saveId: string, commands: Command[], timeline?: Timeline, beforeAction?: () => Promise<boolean>) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const lastOperation = useRef<TurnOperation | null>(null)
@@ -56,6 +56,7 @@ export function useTurnActions(saveId: string, commands: Command[], timeline?: T
     async (input: TurnInput) => {
       const { setPending } = useReader.getState()
       if (!connected() || busy()) return false
+      if (beforeAction && (!(await beforeAction()) || !connected() || busy())) return false
       lastOperation.current = null
       lastInput.current = input
       lastRegeneration.current = null
@@ -74,23 +75,27 @@ export function useTurnActions(saveId: string, commands: Command[], timeline?: T
         return false
       }
     },
-    [saveId, connected, reportError],
+    [saveId, connected, reportError, beforeAction],
   )
 
   /** 手动整理上下文（/compact 与用量环中的按钮）。 */
   const compact = useCallback(async () => {
-    if (!connected()) return
+    if (!connected()) return false
+    if (beforeAction && (!(await beforeAction()) || !connected())) return false
     try {
       await api.saves.compact(saveId)
       toast(t('reader.compactStarted'))
+      return true
     } catch (err) {
       reportError(err)
+      return false
     }
-  }, [saveId, t, connected, reportError])
+  }, [saveId, t, connected, reportError, beforeAction])
 
   const operate = useCallback(
     async (kind: TurnOperation['kind'], instructions = '', nodeId?: string) => {
       if (!connected() || busy()) return false
+      if (beforeAction && (!(await beforeAction()) || !connected() || busy())) return false
       const node = timeline?.nodes.findLast((n) => n.kind === 'turn')
       if (!node || !timeline || (nodeId && nodeId !== node.id)) {
         toast.error(t('reader.operationTargetMissing'))
@@ -110,7 +115,7 @@ export function useTurnActions(saveId: string, commands: Command[], timeline?: T
         return false
       }
     },
-    [connected, reportError, saveId, t, timeline],
+    [connected, reportError, saveId, t, timeline, beforeAction],
   )
 
   /**
@@ -133,18 +138,19 @@ export function useTurnActions(saveId: string, commands: Command[], timeline?: T
       if ('operation' in r) return operate(r.operation, r.instructions)
       if ('local' in r) {
         if (r.local === 'help') return 'help' as const
-        await compact()
-        return true
+        return compact()
       }
+      if (!confirmed && r.input.kind === 'command' && beforeAction && !(await beforeAction())) return false
       if (!confirmed && !(await confirmCommand(r.input, commands))) return false
       return submit({ ...r.input, ...(pace && { pace }), ...(attachments && { attachments }) })
     },
-    [commands, submit, compact, operate, t],
+    [commands, submit, compact, operate, t, beforeAction],
   )
 
   const choose = useCallback(
     async (item: ChoiceItem) => {
       if (item.command) {
+        if (beforeAction && !(await beforeAction())) return false
         const r = parseInput(item.command, commands)
         if (r.ok && 'input' in r) {
           if (!(await confirmCommand(r.input, commands))) return false
@@ -153,7 +159,7 @@ export function useTurnActions(saveId: string, commands: Command[], timeline?: T
       }
       return submit({ kind: 'choice', choice_id: item.id })
     },
-    [commands, submit],
+    [commands, submit, beforeAction],
   )
 
   const stop = useCallback(async () => {
@@ -176,6 +182,7 @@ export function useTurnActions(saveId: string, commands: Command[], timeline?: T
     async (nodeId: string, parentId: string, input?: TurnInput, shown?: TurnInput) => {
       const { setPending } = useReader.getState()
       if (!connected() || busy()) return false
+      if (beforeAction && (!(await beforeAction()) || !connected() || busy())) return false
       lastOperation.current = null
       lastRegeneration.current = { nodeId, parentId, input, shown }
       const presentation = qc.getQueryData<Presentation>(qk.save(saveId))
@@ -193,7 +200,7 @@ export function useTurnActions(saveId: string, commands: Command[], timeline?: T
         return false
       }
     },
-    [saveId, qc, t, connected, reportError],
+    [saveId, qc, t, connected, reportError, beforeAction],
   )
 
   const retry = useCallback(() => {

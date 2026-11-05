@@ -25,6 +25,7 @@ import { useSaveSettings } from '@/features/save/useSaveSettings'
 
 import { ModelSettings } from './ModelSettings'
 import { BudgetSettings } from './BudgetSettings'
+import { usePlaySettings } from './usePlaySettings'
 import { useReaderContext } from '../ReaderContext'
 import { CommandPalette } from './CommandPalette'
 import { paletteEntries, type PaletteEntry } from './paletteEntries'
@@ -32,6 +33,7 @@ import { ACCEPT_ATTR, useAttachments } from './useAttachments'
 
 export interface InputDockHandle {
   focus: (text?: string) => void
+  saveSettings: () => Promise<boolean>
 }
 
 /** 提交输入栏内容时的附加信息。 */
@@ -64,6 +66,7 @@ export const InputDock = forwardRef<InputDockHandle, Props>(function InputDock({
   const [mode, setMode] = useState<Command | null>(null)
   const pace = save.settings.pace || ui.pace
   const { update: updateSettings, disabled: settingsDisabled } = useSaveSettings(save.id)
+  const playSettings = usePlaySettings(save)
   const [active, setActive] = useState(0)
   const taRef = useRef<HTMLTextAreaElement>(null)
 
@@ -76,6 +79,7 @@ export const InputDock = forwardRef<InputDockHandle, Props>(function InputDock({
   const paletteOpen = entries.length > 0
 
   useImperativeHandle(ref, () => ({
+    saveSettings: playSettings.commit,
     focus: (prefill?: string) => {
       if (prefill !== undefined) setText(prefill)
       taRef.current?.focus()
@@ -179,9 +183,11 @@ export const InputDock = forwardRef<InputDockHandle, Props>(function InputDock({
               size="xs"
               className="rounded-full border-rule bg-paper-raised/70 text-ink-muted backdrop-blur hover:text-ink"
               disabled={busy}
-              onClick={() => {
+              data-play-settings-send
+              onClick={async () => {
                 // 需要参数的命令先填入输入框，否则直接执行
                 if (c.args?.some((a) => a.required)) {
+                  if (!(await playSettings.commit())) return
                   setText(`/${c.name} `)
                   taRef.current?.focus()
                 } else void onSubmit(`/${c.name}`)
@@ -258,9 +264,9 @@ export const InputDock = forwardRef<InputDockHandle, Props>(function InputDock({
           />
         </div>
         <div className="mt-1 flex min-w-0 items-center gap-0.5" role="group" aria-label={t('playSettings.toolbar')}>
-          <ModelSettings save={save} />
+          <ModelSettings save={save} settings={playSettings} />
           <div className="flex-1" aria-hidden />
-          <BudgetSettings save={save} />
+          <BudgetSettings settings={playSettings} />
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -315,6 +321,7 @@ export const InputDock = forwardRef<InputDockHandle, Props>(function InputDock({
           ) : (
             <Button
               size="icon-sm"
+              data-play-settings-send
               onClick={() => void send()}
               disabled={!canSend || updateSettings.isPending}
               aria-label={t('reader.send')}

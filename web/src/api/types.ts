@@ -42,6 +42,8 @@ export interface Settings {
   play: { pace: Pace; reasoning: Reasoning; cache_ttl: 'short' | 'long'; title_on_exit: 'auto' | 'ask' | 'off'; helpers: boolean }
   /** 上下文整理的默认参数（存档设置可覆盖） */
   context: ContextSettings
+  /** 不再提示的类别，跨存档生效 */
+  dismissed_warnings: { model_switch: boolean; high_context_budget: boolean }
   onboarded: boolean
   /** 开发者选项（SET-07，D-31）：显示检查器、回合检查、完整状态与状态编辑 */
   developer: boolean

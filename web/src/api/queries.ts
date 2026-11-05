@@ -108,7 +108,8 @@ export function useDebugFile(id: string, call: string, phase: string, path: stri
 
 export const useSystemInfo = () => useQuery({ queryKey: qk.system, queryFn: api.system.info, staleTime: Infinity })
 
-export const useSettings = () => useQuery({ queryKey: qk.settings, queryFn: api.settings.get, staleTime: Infinity })
+export const useSettings = (options: { enabled?: boolean; staleTime?: number } = {}) =>
+  useQuery({ queryKey: qk.settings, queryFn: api.settings.get, staleTime: Infinity, ...options })
 
 export function useUpdateSettings() {
   const qc = useQueryClient()

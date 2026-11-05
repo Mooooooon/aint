@@ -42,6 +42,7 @@ test('上下文档位、费用确认与持久化', async ({ page, request }, inf
     expect(mutations).toHaveLength(0)
 
     await budget.getByRole('radio', { name: '512k', exact: true }).click()
+    await expect(confirm).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(confirm).toHaveCount(0)
     expect(mutations).toHaveLength(0)
@@ -68,7 +69,7 @@ test('上下文档位、费用确认与持久化', async ({ page, request }, inf
   }
 })
 
-test('开局与游玩保存高预算前确认费用，取消保留表单', async ({ page, request }) => {
+test('高预算确认取消时开局保留表单，游玩丢弃配置并关闭面板', async ({ page, request }) => {
   let createdCount = 0
   page.on('request', (r) => {
     if (r.method() === 'POST' && r.url().endsWith('/saves')) createdCount++
@@ -103,19 +104,23 @@ test('开局与游玩保存高预算前确认费用，取消保留表单', async
 
   await page.getByRole('button', { name: '上下文与成本', exact: true }).click()
   await budget.fill('256000')
-  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await page.getByRole('button', { name: '上下文与成本', exact: true }).click()
   await expect.poll(savedBudget).toBe(256000)
   await expect(budget).toHaveCount(0)
 
   await page.getByRole('button', { name: '上下文与成本', exact: true }).click()
   await budget.fill('512000')
-  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await page.getByRole('button', { name: '上下文与成本', exact: true }).click()
   await expect(confirm).toContainText('双倍收费')
   expect(await savedBudget()).toBe(256000)
   await confirm.getByRole('button', { name: '取消', exact: true }).click()
-  await expect(budget).toHaveValue('512000')
+  await expect(confirm).toHaveCount(0)
+  await expect(budget).toHaveCount(0)
   expect(await savedBudget()).toBe(256000)
-  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await page.getByRole('button', { name: '上下文与成本', exact: true }).click()
+  await expect(budget).toHaveValue('256000')
+  await budget.fill('512000')
+  await page.getByRole('button', { name: '上下文与成本', exact: true }).click()
   await confirm.getByRole('button', { name: '确定', exact: true }).click()
   await expect(confirm).toHaveCount(0)
   await expect.poll(savedBudget).toBe(512000)
@@ -123,9 +128,120 @@ test('开局与游玩保存高预算前确认费用，取消保留表单', async
 
   await page.getByRole('button', { name: '上下文与成本', exact: true }).click()
   await page.getByRole('spinbutton', { name: '保留原文（token）', exact: true }).fill('48000')
-  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await page.getByRole('button', { name: '上下文与成本', exact: true }).click()
   await expect(budget).toHaveCount(0)
   await expect(confirm).toHaveCount(0)
+  await page.goto('/')
+  await request.delete(`/api/v1/saves/${id}`)
+})
+
+test('离开游玩设置时校验输入，保存失败保留草稿并可重试', async ({ page, request }) => {
+  const created = await request.post('/api/v1/saves', { data: { work_id: 'aint.misty-harbor' } })
+  const { id } = await created.json()
+  let attempts = 0
+  let fail = true
+  await page.route(`**/api/v1/saves/${id}`, async (route) => {
+    if (route.request().method() === 'PATCH') {
+      attempts++
+      if (fail) {
+        await route.fulfill({ status: 503, json: { error: { code: 'internal', message: '设置暂时无法保存' } } })
+        return
+      }
+    }
+    await route.continue()
+  })
+  await page.goto(`/play/${id}`)
+  const trigger = page.getByRole('button', { name: '上下文与成本', exact: true })
+  const calls = page.getByRole('spinbutton', { name: '每回合模型调用上限', exact: true })
+  await trigger.click()
+  await calls.fill('51')
+  await trigger.click()
+  await expect(calls).toHaveValue('51')
+  expect(await calls.evaluate((el: HTMLInputElement) => el.validity.rangeOverflow)).toBe(true)
+  expect(attempts).toBe(0)
+
+  await calls.fill('8')
+  await page.mouse.click(4, 4)
+  await expect(page.getByText('设置暂时无法保存', { exact: true })).toBeVisible()
+  await expect(calls).toBeEnabled()
+  await expect(calls).toHaveValue('8')
+  expect(attempts).toBe(1)
+  fail = false
+  await page.getByRole('button', { name: '模型与推理', exact: true }).click()
+  await expect(page.getByRole('button', { name: '选择主笔模型', exact: true })).toBeVisible()
+  expect(attempts).toBe(2)
+  const saved = await request.get(`/api/v1/saves/${id}`).then((r) => r.json())
+  expect(saved.save.settings.max_calls).toBe(8)
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: '选择主笔模型', exact: true })).toHaveCount(0)
+  expect(attempts).toBe(2)
+  await page.mouse.move(4, 4)
+  await expect(page.getByText('设置暂时无法保存', { exact: true })).toHaveCount(0)
+  await trigger.click()
+  await expect(calls).toHaveValue('8')
+  await calls.fill('9')
+  await page.keyboard.press('Escape')
+  await expect(calls).toHaveCount(0)
+  await page.reload()
+  await trigger.click()
+  await expect(calls).toHaveValue('9')
+  await page.goto('/')
+  await request.delete(`/api/v1/saves/${id}`)
+})
+
+test('发送先确认并等待游玩设置保存，取消时保留输入且重复点击只发起一个回合', async ({ page, request }) => {
+  const created = await request.post('/api/v1/saves', { data: { work_id: 'aint.misty-harbor' } })
+  const { id } = await created.json()
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const order: string[] = []
+  let budgetAtSubmit = 0
+  await page.route(`**/api/v1/saves/${id}`, async (route) => {
+    if (route.request().method() === 'PATCH') {
+      order.push('settings')
+      await gate
+    }
+    await route.continue()
+  })
+  await page.route(`**/api/v1/saves/${id}/turns`, async (route) => {
+    order.push('turn')
+    budgetAtSubmit = (await request.get(`/api/v1/saves/${id}`).then((r) => r.json())).save.settings.context_budget
+    await route.continue()
+  })
+  await page.goto(`/play/${id}`)
+  const input = page.getByRole('textbox', { name: '写下你的行动……', exact: true })
+  const send = page.getByRole('button', { name: '发送', exact: true })
+  await input.fill('继续向前')
+  await expect(send).toBeEnabled()
+  await page.getByRole('button', { name: '上下文与成本', exact: true }).click()
+  const budget = page.getByRole('spinbutton', { name: '整理阈值（token）', exact: true })
+  await budget.fill('512000')
+  await send.click()
+  const confirm = page.getByRole('alertdialog')
+  await expect(confirm).toContainText('双倍收费')
+  await confirm.getByRole('button', { name: '取消', exact: true }).click()
+  await expect(confirm).toHaveCount(0)
+  await expect(budget).toHaveCount(0)
+  await expect(input).toHaveValue('继续向前')
+  expect(order).toEqual([])
+
+  await page.getByRole('button', { name: '上下文与成本', exact: true }).click()
+  await expect(budget).toHaveValue('')
+  await budget.fill('512000')
+  await send.click()
+  await confirm.getByRole('button', { name: '确定', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: '正在保存' })).toBeVisible()
+  await expect.poll(() => order).toEqual(['settings'])
+  await send.click()
+  expect(order).toEqual(['settings'])
+  release()
+  await expect(input).toHaveValue('')
+  await expect(budget).toHaveCount(0)
+  await expect(page.locator('article button').filter({ hasText: '继续前行' }).last()).toBeVisible()
+  expect(order).toEqual(['settings', 'turn'])
+  expect(budgetAtSubmit).toBe(512000)
   await page.goto('/')
   await request.delete(`/api/v1/saves/${id}`)
 })

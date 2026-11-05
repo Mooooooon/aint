@@ -123,6 +123,7 @@ export function ChoiceList({ item, selected }: { item: ChoicesItem; selected?: s
               <button
                 type="button"
                 disabled={locked}
+                data-play-settings-send
                 onClick={() => choose(c)}
                 className={cn(
                   'group flex w-full items-baseline gap-4 px-5 py-3.5 text-left transition-[background-color,box-shadow] duration-150',

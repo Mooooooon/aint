@@ -18,18 +18,25 @@ import (
 
 // Settings 是全局设置。修改字段时同步 web/src/api/types.ts。
 type Settings struct {
-	Listen       string     `json:"listen"`         // 监听地址，重启生效。
-	Theme        string     `json:"theme"`          // system | light | dark
-	UseWorkTheme bool       `json:"use_work_theme"` // 关闭则使用平台主题（样式标签仍生效）
-	Reading      Reading    `json:"reading"`
-	Audio        Audio      `json:"audio"`
-	Models       ModelRoles `json:"models"`
-	Play         Play       `json:"play"`
-	Context      Context    `json:"context"`
-	Onboarded    bool       `json:"onboarded"` // 是否已看过欢迎页
+	Listen            string            `json:"listen"`         // 监听地址，重启生效。
+	Theme             string            `json:"theme"`          // system | light | dark
+	UseWorkTheme      bool              `json:"use_work_theme"` // 关闭则使用平台主题（样式标签仍生效）
+	Reading           Reading           `json:"reading"`
+	Audio             Audio             `json:"audio"`
+	Models            ModelRoles        `json:"models"`
+	Play              Play              `json:"play"`
+	Context           Context           `json:"context"`
+	DismissedWarnings DismissedWarnings `json:"dismissed_warnings"`
+	Onboarded         bool              `json:"onboarded"` // 是否已看过欢迎页
 	// Developer 是"开发者选项"（SET-07，D-31）：显示完整状态与状态编辑；游玩调试使用独立开关。
 	// 默认关闭；从开发目录链接的作品不论此开关如何都显示（Presentation.DevWork）。
 	Developer bool `json:"developer"`
+}
+
+// DismissedWarnings 是跨存档生效的提示偏好，true 表示不再确认该类提示。
+type DismissedWarnings struct {
+	ModelSwitch       bool `json:"model_switch"`
+	HighContextBudget bool `json:"high_context_budget"`
 }
 
 // Reading 是阅读设置（SET-02）。

@@ -88,7 +88,9 @@ const zhCN = {
     model: '模型与推理',
     toolbar: '输入与游玩设置',
     pace: '篇幅（当前存档）',
-    hint: '修改只影响当前存档，从下一回合生效。',
+    autoSaveHint: '离开面板自动保存，仅影响当前存档，下回合生效。',
+    saving: '正在保存…',
+    selectModel: '选择主笔模型',
     switchWarning:
       '切换模型可能改变文风、人物表现与工具调用能力；历史推理可能无法沿用，缓存会重新建立，下一回合费用可能增加。较小的上下文窗口也可能触发整理。确定切换？',
     noReasoning: '这个模型不支持调节推理强度。',
@@ -235,6 +237,7 @@ const zhCN = {
     close: '关闭',
     confirm: '确定',
     confirmTitle: '确认',
+    dontAskAgain: '不再提示',
     delete: '删除',
     rename: '重命名',
     retry: '重试',
