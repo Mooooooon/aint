@@ -55,3 +55,10 @@
 - [CI](https://github.com/wahhheee/aint/actions/runs/40817159353) 全部通过，包括三平台 Go 测试、静态检查、前端 443 项测试、42 项浏览器测试和六平台交叉编译；[标签发布构建](https://github.com/wahhheee/aint/actions/runs/40817170167) 通过。
 - 发布正文包含上下文档位、费用确认、默认值、窄屏布局与更新下载说明。
 - 本次发布包未完成本地运行验收。已有 Windows/amd64 发布包运行验收覆盖 alpha.1；M6-11 保持部分完成。
+
+## 2026-11-05 v0.1.1-alpha.1 发布记录
+
+- [v0.1.1-alpha.1](https://github.com/wahhheee/aint/releases/tag/v0.1.1-alpha.1) 已发布为 Pre-release，标签对应 `55bd807078f940e21ecaf640318ba571a4f90963`。
+- 发布代码的本地 `task check` 通过，包含 Go 全量测试与静态检查、前端 448 项测试；[CI](https://github.com/wahhheee/aint/actions/runs/42033295071) 与[标签发布构建](https://github.com/wahhheee/aint/actions/runs/42035429437) 全部通过。
+- 发布正文包含游玩设置自动保存、模型选择与滑条交互、确认偏好、重复设置清理、补选项旁白隔离、示例标注及更新下载说明。
+- M6-11 保持部分完成，其他平台与架构的实际运行、完整成功标准及发布候选版验收待做。
