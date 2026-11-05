@@ -9,6 +9,7 @@ import (
 	"github.com/wahhheee/aint/internal/event"
 	"github.com/wahhheee/aint/internal/llm"
 	"github.com/wahhheee/aint/internal/llm/fake"
+	"github.com/wahhheee/aint/internal/pkg/jsonx"
 	"github.com/wahhheee/aint/internal/prompts"
 	"github.com/wahhheee/aint/internal/runtime"
 	"github.com/wahhheee/aint/internal/save"
@@ -209,6 +210,112 @@ func TestForceChoicesHistoryAndUsage(t *testing.T) {
 		t.Fatalf("玩家选择应回填到补调用的 offer_choices：%+v", last)
 	}
 	checkAdapterPrefix(t, reqs, storeBlobs{e})
+}
+
+func TestForceChoicesTextIsolation(t *testing.T) {
+	const story = "门后传来了脚步声。"
+	const aside = "Okay, let me call offer_choices."
+	choices := choiceResponse()
+	choices.Text = aside
+	invalid := fake.Response{Text: aside, ToolCalls: []fake.ToolCall{{Name: "offer_choices", Args: map[string]any{"choices": []any{}}}}}
+	write := fake.Response{Text: aside, ToolCalls: []fake.ToolCall{{Name: "write", Args: map[string]any{
+		"path": "/memory/door.md", "content": "门后有脚步声。",
+	}}}}
+	for _, tc := range []struct {
+		name, stop string
+		responses  []fake.Response
+	}{
+		{name: "成功", stop: "choices", responses: []fake.Response{choices}},
+		{name: "工具往返", stop: "choices", responses: []fake.Response{write, choices}},
+		{name: "选项参数重试", stop: "choices", responses: []fake.Response{invalid, choices}},
+		{name: "截断续调", stop: "choices", responses: []fake.Response{{Text: aside, Stop: "max_tokens"}, choices}},
+		{name: "仍缺选项", stop: "choices_missing", responses: []fake.Response{{Text: aside}}},
+		{name: "工具之后失败", stop: "error", responses: []fake.Response{write, {Error: string(llm.ErrNetwork)}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			responses := append([]fake.Response{{Text: story}}, tc.responses...)
+			responses = append(responses, fake.Response{Text: "你推开了门。", ToolCalls: choiceResponse().ToolCalls})
+			for i := range responses {
+				responses[i].ChunkRunes, responses[i].DelayMS = 3, 1
+			}
+			var reqs []*llm.Request
+			e := setupWith(t, recordingProvider{Provider: fake.New(&fake.Script{Responses: responses}), reqs: &reqs})
+			sv := choicesSave(t, e, "features:\n  force_choices: true\n")
+			e.mgr.SetDebug(sv.ID, true)
+			sub, _, _ := e.bus.Subscribe(event.SaveTopic(sv.ID), 0)
+			defer sub.Close()
+			id, err := e.mgr.Submit(t.Context(), sv.ID, save.TurnInput{Kind: save.InputOpening})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var streamed strings.Builder
+			waiting := true
+			for waiting {
+				select {
+				case ev := <-sub.C:
+					switch ev.Type {
+					case event.TurnText:
+						streamed.WriteString(ev.Data.(event.TurnTextData).Delta)
+					case event.TurnCommitted:
+						waiting = false
+					case event.TurnFailed:
+						t.Fatal("正文回合未提交")
+					}
+				case <-time.After(5 * time.Second):
+					t.Fatal("补选项回合未结束")
+				}
+			}
+			node, err := e.saves.Node(t.Context(), sv.ID, id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if node.Meta.Stop != tc.stop || streamed.String() != story {
+				t.Fatalf("停止原因或流式正文错误：%s / %q", node.Meta.Stop, streamed.String())
+			}
+			timeline, err := e.saves.Timeline(t.Context(), sv.ID, "", 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			transcripts, err := e.saves.TranscriptTexts(t.Context(), sv.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			msgs, err := e.saves.LoadMessages(t.Context(), node.MessagesHash)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if transcripts[id] != story || strings.Contains(string(jsonx.MustMarshal(timeline)), aside) || strings.Contains(string(jsonx.MustMarshal(msgs)), aside) {
+				t.Fatal("补选项旁白进入了显示、原文或故事历史")
+			}
+			debug := e.mgr.Debug(sv.ID)
+			call, err := e.mgr.DebugCall(sv.ID, debug.Calls[1].ID)
+			if err != nil || !strings.Contains(string(jsonx.MustMarshal(call)), aside) {
+				t.Fatalf("检查器未保留原始旁白：%v", err)
+			}
+			if tc.name == "工具往返" || tc.name == "工具之后失败" {
+				memory, err := e.saves.LoadMemory(t.Context(), node.MemoryHash)
+				if err != nil || memory.Files["/memory/door.md"].Blob == "" {
+					t.Fatalf("补选项阶段的记忆写入未保留：%v", err)
+				}
+				var wrote, result bool
+				for _, msg := range msgs {
+					for _, c := range msg.ToolCalls() {
+						wrote = wrote || c.Name == "write"
+					}
+					for _, r := range toolResults(msg) {
+						result = result || (r.CallID == "call_1_1" && !r.IsError)
+					}
+				}
+				if !wrote || !result {
+					t.Fatal("记忆工具调用或结果未进入历史")
+				}
+			}
+			play(t, e, sv.ID, save.TurnInput{Kind: save.InputFree, Text: "推开门"})
+			if strings.Contains(string(jsonx.MustMarshal(reqs[len(reqs)-1].Messages)), aside) {
+				t.Fatal("补选项旁白进入了下一回合")
+			}
+		})
+	}
 }
 
 // choicesGate 在补调用开始时通知测试，并等待取消。

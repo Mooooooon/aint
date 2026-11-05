@@ -248,7 +248,6 @@ func (m *Manager) prepare(ctx context.Context, saveID, turnID, parentID string, 
 
 // loop 是回合主循环（《02-技术方案》9.2–9.3）。
 func (m *Manager) loop(ctx context.Context, d *draft) {
-	choicesNudged := false
 	toolTextRepairs := 0
 	unrepaired := map[string]bool{}
 	for {
@@ -281,7 +280,13 @@ func (m *Manager) loop(ctx context.Context, d *draft) {
 			d.stopRaw = res.raw
 			if len(res.msg.Parts) > 0 || len(res.msg.Native) > 0 {
 				d.req.Messages = append(d.req.Messages, res.msg)
-				d.turnMsgs = append(d.turnMsgs, res.msg)
+				msg := res.msg
+				if d.completingChoices {
+					msg = toolCallMessage(msg)
+				}
+				if len(msg.Parts) > 0 || len(msg.Native) > 0 {
+					d.turnMsgs = append(d.turnMsgs, msg)
+				}
 			}
 		}
 		if err != nil {
@@ -353,9 +358,9 @@ func (m *Manager) loop(ctx context.Context, d *draft) {
 				d.stopToolText()
 				return
 			}
-			if d.choices == nil && (d.isChoices() || (d.features.Has(prompts.FForceChoices) && d.hasNarrative())) {
-				if !choicesNudged {
-					choicesNudged = true
+			if d.choices == nil && (d.isChoices() || (d.work.Manifest.Features.ForceChoices && d.hasNarrative())) {
+				if !d.completingChoices {
+					d.completingChoices = true
 					text := prompts.ForceChoicesNotice
 					if d.isChoices() {
 						text = prompts.RequestChoices
@@ -526,7 +531,7 @@ func (m *Manager) callOnce(ctx context.Context, d *draft) (*callResult, error) {
 		}
 	}()
 	show := func(s string) {
-		if s == "" || d.isChoices() || d.reviewing {
+		if s == "" || d.isChoices() || d.completingChoices || d.reviewing {
 			return
 		}
 		d.appendText(s)

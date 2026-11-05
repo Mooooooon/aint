@@ -12,6 +12,21 @@ import (
 	"github.com/wahhheee/aint/internal/work"
 )
 
+func TestToolCallMessage(t *testing.T) {
+	msg := llm.Message{Role: llm.RoleAssistant, Parts: []llm.Part{
+		llm.Text("准备调用工具。"),
+		{Kind: llm.PartReasoning, Text: "内部思考"},
+		{Kind: llm.PartToolCall, ToolCall: &llm.ToolCall{ID: "choices", Name: "offer_choices"}},
+	}, Native: map[string]jsonx.Value{"protocol/model": jsonx.Value(`{"text":"准备调用工具。"}`)}}
+	got := toolCallMessage(msg)
+	if got.Role != llm.RoleAssistant || len(got.Parts) != 1 || len(got.ToolCalls()) != 1 || got.ToolCalls()[0].ID != "choices" || len(got.Native) != 0 {
+		t.Fatalf("补选项历史只能保留工具调用：%+v", got)
+	}
+	if len(msg.Parts) != 3 || len(msg.Native) != 1 {
+		t.Fatal("不应改写本次调用的原始消息")
+	}
+}
+
 func TestToolHistoryCleaner(t *testing.T) {
 	native := map[string]jsonx.Value{"signed/model": jsonx.Value(`{"signature":"签名","text":"<offer_choices/>"}`)}
 	call := func(id, name string) llm.Part {

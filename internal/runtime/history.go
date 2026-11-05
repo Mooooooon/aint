@@ -127,6 +127,17 @@ func (m *Manager) loadContext(ctx context.Context, w *work.Model, fs prompts.Fea
 	return ec, nil
 }
 
+// toolCallMessage 只保留助手的工具调用，排除普通文字、推理及含原始文字的协议内容。
+func toolCallMessage(msg llm.Message) llm.Message {
+	out := llm.Message{Role: msg.Role}
+	for _, p := range msg.Parts {
+		if p.Kind == llm.PartToolCall {
+			out.Parts = append(out.Parts, p)
+		}
+	}
+	return out
+}
+
 // stripNative 去掉助手消息中的推理摘要与协议原生内容（返回新切片，不修改原消息）。
 func stripNative(msgs []llm.Message) []llm.Message {
 	out := make([]llm.Message, 0, len(msgs))

@@ -156,7 +156,7 @@ func specOfferChoices(fs prompts.FeatureSet, m *work.Model) (string, map[string]
 		props["timeout_seconds"] = integer("限时秒数（可选）")
 		props["default_choice"] = str("超时后默认选中的选项 ID")
 	}
-	return "在正文之后调用，将选项放入 choices 参数，平台会生成选项按钮；在正文中输出列表或 HTML 不会创建按钮。调用成功后结束本回合，等待玩家的作答作为此调用的工具结果返回。", object([]string{"choices"}, props)
+	return "提供可点击的行动选项。将选项放入 choices 参数，平台会生成选项按钮；在正文中输出列表或 HTML 不会创建按钮。调用成功后结束本回合，等待玩家的作答作为此调用的工具结果返回。", object([]string{"choices"}, props)
 }
 
 type offerArgs struct {

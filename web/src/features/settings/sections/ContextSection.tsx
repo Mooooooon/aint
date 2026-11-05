@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next'
 import { useModels, useSettings, useSystemInfo, useUpdateSettings } from '@/api/queries'
 import type { ContextSettings } from '@/api/types'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { confirmContextBudget } from '@/lib/confirmContextBudget'
 import { formatTokens } from '@/lib/format'
@@ -98,13 +97,6 @@ export function ContextSection() {
             />
           </SettingRow>
         ))}
-        <SettingRow label={t('settings.context.toolHints')}>
-          <Switch
-            aria-label={t('settings.context.toolHints')}
-            checked={data.reading.tool_hints}
-            onCheckedChange={(v) => update.mutate({ reading: { tool_hints: v } })}
-          />
-        </SettingRow>
       </SettingGroup>
     </section>
   )

@@ -20,7 +20,7 @@
 | 多个起点 / 路线 | 多个开场，各自 `initial_state` |
 | 场景演出 | 背景图（`role: background`）+ `<scene>`；插图 + `<cg>`；音频 + `<bgm>`/`<sfx>` |
 | 图片线索、人物形象 | 素材 + 设定文档 `images`；每回合都要看见的才 `pin` |
-| 纯选项推进 | `features.free_input: false`，执笔者每回合给出选项 |
+| 纯选项推进 | `features.free_input: false`，玩家通过选项与命令行动；可配合 `features.force_choices: true` 在缺少选项时补调用 |
 | 长篇记忆 | 平台默认就有；有特别需要记的东西才写 `prompts/memory.md` |
 
 很多作品只需要 `work.yaml`、执笔指令、开场与几份设定。

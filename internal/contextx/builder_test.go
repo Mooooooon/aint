@@ -113,9 +113,6 @@ func TestForceChoicesAssembly(t *testing.T) {
 		for _, force := range []bool{false, true} {
 			w.Manifest.Features.FreeInput, w.Manifest.Features.ForceChoices = free, force
 			features := contextx.Profile(w, save.Settings{}, llm.Caps{}, false)
-			if features.Has(prompts.FForceChoices) != force {
-				t.Fatalf("force_choices 能力不符：%v", features)
-			}
 			built, err := b.Build(t.Context(), contextx.BuildInput{
 				SaveID: "s1", Work: w, Features: features, Model: fake.Model(),
 				InitialState: map[string]any{}, InitialStateHash: "h", Tools: tools.NewRegistry().Specs(features, w),
@@ -125,17 +122,11 @@ func TestForceChoicesAssembly(t *testing.T) {
 				t.Fatal(err)
 			}
 			sys := systemText(built.Request)
-			if got := strings.Contains(sys, "暂时没有合适的选项时，写完直接结束即可"); got != (free && !force) {
-				t.Errorf("free_input=%v force_choices=%v：可省略选项的说明不符", free, force)
-			}
-			if got := strings.Contains(sys, "每个回合的正文写完后，请调用 offer_choices"); got != force {
-				t.Errorf("free_input=%v force_choices=%v：正文结束后的选项要求不符", free, force)
-			}
 			if got := strings.Contains(sys, "玩家也可以自由输入"); got != free {
 				t.Errorf("free_input=%v force_choices=%v：自由输入的说明不符", free, force)
 			}
-			if previousHash == built.PrefixHash {
-				t.Error("force_choices 影响提示词，前缀哈希应不同")
+			if previousHash != "" && previousHash != built.PrefixHash {
+				t.Error("force_choices 只影响运行时，前缀哈希应相同")
 			}
 			previousHash = built.PrefixHash
 		}
