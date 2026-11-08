@@ -189,18 +189,20 @@ Gemini 开场选项验证：`AINT_GEMINI_LIVE=<配置绝对路径> go test ./int
 task build
 ```
 
-- `CGO_ENABLED=0`，纯 Go（`modernc.org/sqlite`），六个目标平台可交叉编译：`task build:cross`。
+- `CGO_ENABLED=0`，纯 Go（`modernc.org/sqlite`），七个目标平台可交叉编译：`task build:cross`（Windows / macOS / Linux 的 amd64 / arm64，以及 Android/arm64）。
+- 单独构建 Android/arm64：`task build:android`，包含前端，产物为 `dist/aint-android-arm64`。使用 `GOOS=android GOARCH=arm64 CGO_ENABLED=0`，不需要 Android NDK；其他 Android 架构需要外部链接工具链，暂未纳入。
+- Termux 使用独立的 Android 构建。Go 标准库在 Android 目标下跳过 `faccessat2`，Linux 构建会尝试调用该系统调用。
 - 版本号由 `git describe` 注入 `internal/buildinfo`。
 
 ### 5.1 发布包
 
-`.goreleaser.yaml` 定义 Windows、macOS、Linux 的 amd64 / arm64 六种产物，全部关闭 CGO。每份压缩包包含可执行文件、许可证、使用说明、创作指南、作品 Schema、aint-work 技能和两部示例 zip；`checksums.txt` 覆盖发布压缩包。
+`.goreleaser.yaml` 定义 Windows、macOS、Linux 的 amd64 / arm64，以及 Android/arm64 共七种产物，全部关闭 CGO。Android 包名为 `aint_<版本>_android_arm64.tar.gz`，面向 Termux。每份压缩包包含可执行文件、许可证、使用说明、创作指南、作品 Schema、aint-work 技能和两部示例 zip；`checksums.txt` 覆盖发布压缩包。
 
 ### 5.2 本地验证
 
 使用 GoReleaser 2.19.0 和仓库规定的 Go / pnpm 版本。先运行 `task check` 和 `task build:web`，再运行 `goreleaser check` 与 `goreleaser release --snapshot --clean`。快照不会上传发布页，不需要模型密钥。构建产物位于 `dist/`，示例暂存于 `.release/`。Schema 变更后运行 `go run ./cmd/schema-gen`；测试会检查定义与已提交的文件一致。
 
-验证六份包均有可执行文件、使用与创作说明、10 个 Schema、完整技能与两部示例 zip。在本机解压后使用临时数据目录启动，确认静态页面、`version` 和示例导入可用。其他系统的实际运行与发布候选版验收属于 M6-11。
+验证七份包均有可执行文件、使用与创作说明、10 个 Schema、完整技能与两部示例 zip。在本机解压后使用临时数据目录启动，确认静态页面、`version` 和示例导入可用。其他系统的实际运行与发布候选版验收属于 M6-11。
 
 ### 5.3 GitHub Actions
 

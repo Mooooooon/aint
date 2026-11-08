@@ -1,4 +1,4 @@
-# 持续集成：Go 测试（三平台）、Go 静态检查、前端检查与测试、六平台交叉编译。
+# 持续集成：Go 测试（三平台）、Go 静态检查、前端检查与测试、七平台交叉编译。
 # 静态检查与本地 `task lint` 相同（golangci-lint 版本见 Taskfile.yml 的 GOLANGCI_VERSION）。
 name: CI
 
@@ -102,7 +102,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [windows/amd64, windows/arm64, darwin/amd64, darwin/arm64, linux/amd64, linux/arm64]
+        target: [windows/amd64, windows/arm64, darwin/amd64, darwin/arm64, linux/amd64, linux/arm64, android/arm64]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

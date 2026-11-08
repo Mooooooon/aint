@@ -139,15 +139,19 @@ tasks:
     cmds:
       - go build -trimpath -ldflags "{{.LDFLAGS}}" -o bin/aint{{exeExt}} ./cmd/aint
 
-  build:cross:
-    desc: 交叉编译六个目标平台（发布打包见 docs/development.md 第 5 节）
+  build:android:
+    desc: 构建 Android/arm64（Termux）程序到 dist/（含前端）
     deps: [build:web]
-    env:
-      CGO_ENABLED: "0"
     cmds:
-      - for: [windows/amd64, windows/arm64, darwin/amd64, darwin/arm64, linux/amd64, linux/arm64]
+      - GOOS=android GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags "{{.LDFLAGS}}" -o dist/aint-android-arm64 ./cmd/aint
+
+  build:cross:
+    desc: 交叉编译七个目标平台（发布打包见 docs/development.md 第 5 节）
+    deps: [build:web]
+    cmds:
+      - for: [windows/amd64, windows/arm64, darwin/amd64, darwin/arm64, linux/amd64, linux/arm64, android/arm64]
         cmd: |
-          GOOS=$(echo {{.ITEM}} | cut -d/ -f1) GOARCH=$(echo {{.ITEM}} | cut -d/ -f2) \
+          GOOS=$(echo {{.ITEM}} | cut -d/ -f1) GOARCH=$(echo {{.ITEM}} | cut -d/ -f2) CGO_ENABLED=0 \
             go build -trimpath -ldflags "{{.LDFLAGS}}" -o "dist/aint-$(echo {{.ITEM}} | tr / -)$( [ "$(echo {{.ITEM}} | cut -d/ -f1)" = windows ] && echo .exe)" ./cmd/aint
 
   clean:
