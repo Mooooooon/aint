@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '@/api/endpoints'
 import { errorMessage } from '@/api/errors'
 import { useModels, useProviderMutations, useSettings, useUpdateSettings } from '@/api/queries'
-import type { ProviderView } from '@/api/types'
+import type { ProviderView, VertexOptions } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -109,10 +109,14 @@ function ProviderForm({
   const [name, setName] = useState(provider?.name ?? '')
   const [baseUrl, setBaseUrl] = useState(provider?.base_url ?? defaultBaseUrl('anthropic'))
   const [apiKey, setApiKey] = useState('')
+  const [authMode, setAuthMode] = useState<VertexOptions['auth_mode']>(provider?.options?.auth_mode ?? 'api_key')
+  const [project, setProject] = useState(provider?.options?.project ?? '')
+  const [location, setLocation] = useState(provider?.options?.location ?? 'global')
   const [multiplier, setMultiplier] = useState(String(provider?.price_multiplier ?? 1))
   const [headers, setHeaders] = useState(formatHeaders(provider?.headers))
   const [localError, setLocalError] = useState('')
   const mutation = provider ? updateProvider : createProvider
+  const credentialsRequired = !provider || (protocol === 'vertex' && authMode !== (provider.options?.auth_mode ?? 'api_key'))
 
   const pickProtocol = (p: RealProtocol) => {
     // 还是上一个协议的默认地址时跟着换；用户改过就保留
@@ -127,7 +131,14 @@ function ProviderForm({
     const m = Number(multiplier)
     if (h === null) return setLocalError(t('settings.providers.form.headersHint'))
     if (!Number.isFinite(m) || m <= 0) return setLocalError(t('settings.providers.form.multiplierHint'))
-    const input = { name, base_url: baseUrl, api_key: apiKey || undefined, headers: h, price_multiplier: m }
+    const input = {
+      name,
+      base_url: baseUrl,
+      api_key: apiKey || undefined,
+      headers: h,
+      price_multiplier: m,
+      options: protocol === 'vertex' ? { auth_mode: authMode, project: project.trim(), location: location.trim() } : undefined,
+    }
     if (provider) {
       updateProvider.mutate({ id: provider.id, input }, { onSuccess: onSaved })
     } else {
@@ -177,18 +188,62 @@ function ProviderForm({
 
       <div className="space-y-2">
         <Label htmlFor="prov-key">{t('settings.providers.form.apiKey')}</Label>
-        <Input
-          id="prov-key"
-          type="password"
-          autoComplete="off"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder={provider ? `${provider.key_masked}（${t('settings.providers.form.apiKeyKeep')}）` : 'sk-…'}
-          required={!provider}
-          className="font-mono text-[13px]"
-        />
+        {protocol === 'vertex' && authMode === 'service_account' ? (
+          <Textarea
+            id="prov-key"
+            autoComplete="off"
+            spellCheck={false}
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder={provider ? t('settings.providers.form.apiKeyKeep') : t('settings.providers.vertex.jsonPlaceholder')}
+            required={credentialsRequired}
+            rows={4}
+            className="font-mono text-[13px]"
+          />
+        ) : (
+          <Input
+            id="prov-key"
+            type="password"
+            autoComplete="off"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder={provider ? `${provider.key_masked}（${t('settings.providers.form.apiKeyKeep')}）` : 'sk-…'}
+            required={credentialsRequired}
+            className="font-mono text-[13px]"
+          />
+        )}
         <p className="text-xs leading-5 text-ink-faint">{t('settings.providers.form.apiKeyHint')}</p>
       </div>
+
+      {protocol === 'vertex' && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="prov-auth">{t('settings.providers.vertex.auth')}</Label>
+            <select
+              id="prov-auth"
+              value={authMode}
+              onChange={(e) => {
+                setAuthMode(e.target.value as VertexOptions['auth_mode'])
+                setApiKey('')
+              }}
+              className="h-10 w-full rounded-xl border border-rule bg-transparent px-3 text-sm"
+            >
+              <option value="api_key">{t('settings.providers.vertex.apiKey')}</option>
+              <option value="access_token">{t('settings.providers.vertex.accessToken')}</option>
+              <option value="service_account">{t('settings.providers.vertex.serviceAccount')}</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="prov-project">{t('settings.providers.vertex.project')}</Label>
+            <Input id="prov-project" value={project} onChange={(e) => setProject(e.target.value)} required={authMode === 'access_token'} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="prov-location">{t('settings.providers.vertex.location')}</Label>
+            <Input id="prov-location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="global" />
+          </div>
+          <p className="text-xs leading-5 text-ink-faint">{t('settings.providers.vertex.hint')}</p>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="prov-mult">{t('settings.providers.form.multiplier')}</Label>
@@ -248,6 +303,7 @@ function ModelPicker({ provider, onDone }: { provider: ProviderView; onDone: (fi
     queryFn: () => api.providers.remoteModels(provider.id),
     retry: false,
     staleTime: 60_000,
+    enabled: provider.protocol !== 'vertex',
   })
   const [filter, setFilter] = useState('')
   const [manual, setManual] = useState('')
@@ -294,8 +350,12 @@ function ModelPicker({ provider, onDone }: { provider: ProviderView; onDone: (fi
 
   return (
     <div className="space-y-4">
-      {remote.isPending && <p className="text-sm text-ink-muted">{t('settings.providers.pick.loading')}</p>}
-      {remote.isError && <p className="text-[13px] leading-6 text-warn">{t('settings.providers.pick.listFailed')}</p>}
+      {remote.isLoading && <p className="text-sm text-ink-muted">{t('settings.providers.pick.loading')}</p>}
+      {provider.protocol === 'vertex' ? (
+        <p className="text-[13px] leading-6 text-ink-muted">{t('settings.providers.vertex.manualModels')}</p>
+      ) : (
+        remote.isError && <p className="text-[13px] leading-6 text-warn">{t('settings.providers.pick.listFailed')}</p>
+      )}
       {remote.data && remote.data.length > 0 && (
         <>
           <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t('settings.providers.pick.filter')} />
