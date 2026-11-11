@@ -36,7 +36,8 @@ it('Vertex AI 表单提交项目、区域与凭据，服务账号支持多行 JS
   fireEvent.click(screen.getByRole('radio', { name: /Google Vertex AI/ }))
   expect((screen.getByLabelText('Base URL') as HTMLInputElement).value).toBe('https://aiplatform.googleapis.com')
   fireEvent.change(screen.getByLabelText('名称'), { target: { value: '我的 Vertex' } })
-  fireEvent.change(screen.getByLabelText('认证方式'), { target: { value: 'service_account' } })
+  fireEvent.click(screen.getByRole('combobox', { name: '认证方式' }))
+  fireEvent.click(screen.getByRole('option', { name: '服务账号 JSON（自动刷新令牌）' }))
   const secret = '{\n"type":"service_account"\n}'
   fireEvent.change(screen.getByLabelText('API Key'), { target: { value: secret } })
   expect(screen.getByLabelText('API Key').tagName).toBe('TEXTAREA')
